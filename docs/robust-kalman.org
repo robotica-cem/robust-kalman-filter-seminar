@@ -1,0 +1,185 @@
+#+OPTIONS: toc:nil 
+#+BEAMER_FRAME_LEVEL: 2
+# #+LaTeX_CLASS: koma-article 
+#+LaTeX_CLASS: beamer
+#+LaTeX_HEADER: \usepackage{khpreamble}
+#+LaTeX_HEADER: \newcommand{\sign}{\mathrm{sign}}
+#+LaTeX_HEADER: \newcommand{\transp}{^{\mathrm{T}}}
+#+title: Robust Kalman filter
+#+date: 2015-11-04
+* What do I want the students to understand? 			   :noexport:
+** Convex optimization is fast and powerful
+** How to formulate a convex opimization problem
+** Robustify KF by 1-norm regularization
+
+* What will the students do? 					   :noexport:
+** Install cvx
+** Modify their own kf
+** Run tests with different values of regularization parameter
+
+
+* Introduction
+** Why a robust version of the Kalman filter?
+   The Kalman filter assumes Gaussian measurement noise and so it is very sensitive to outliers. 
+** Example 1
+# Tracking in 2d 
+   The target moves in a circle. Observations are noisy with one outlier
+   \begin{center}
+   \includegraphics[width=0.7\linewidth]{circular-movement-crop}
+   \end{center}
+** Example 1 contd. 
+   The model of the dynamics: /Nearly constant velocity model/
+   \begin{equation*}
+   x(k+1) = \bbm I & hI\\ 0 & I \ebm x(k) + \bbm \frac{h^2}{2} I\\hI\ebm v(k),
+   \end{equation*}
+   where the state vector contains the position and velocity of the target
+   \[ x = \bbm p\\\dot{p} \ebm.\]
+** Example 1 contd.
+   Result of tracking using standard Kalman filter
+   \begin{center}
+   \includegraphics[width=0.7\linewidth]{circular-movement-kf-crop}
+   \end{center}
+* Convex optimization
+** Recommended reading
+   \begin{center}
+   \includegraphics[width=0.8\linewidth]{real-time-convex-opt}
+   \end{center}
+Mattingley, Jacob, and Stephen Boyd. "Real-time convex optimization in signal processing." Signal Processing Magazine, IEEE 27.3 (2010): 50-61.
+
+** Preperation exercise
+   Linear regression model
+   \begin{equation*}
+   y(k) = ax(k) + b + e(k) + w(k), 
+   \end{equation*}
+   where $e(k)$ is Gaussian noise and $w(k)$ is a sparse vector of outliers.
+
+** Preparation exercise contd
+   Least squares estimation:
+   \begin{equation*}
+    \text{minimize} \; ||y - ax - b||_2\\
+   \end{equation*}
+   Solved by forming 
+   \[ A = \bbm x(1) & 1\\x(2) & 1\\ \vdots & \vdots\\ x(N) & 1\ebm \]
+   and
+   \[ z = \bbm a\\b\ebm, \]
+   and solving for $z$ in 
+   \[ Az = y. \]
+
+** Preparation exercis contd.
+   l1-regularization:
+   \begin{equation*}
+    \text{minimize} \; ||y - ax - b - w||_2 + \gamma ||w||_1\\
+   \end{equation*}
+   Solved by convex optimization.
+
+   The vector $w$ will contain the outliers. The larger the value of $\gamma$, the fewer non-zero elements in $w$. 
+
+* Robust Kalman Filter
+** The update step of the Kalman filter
+   We have the state space model
+   \begin{align*}
+   x(k+1) &= Hx(k) + Fv(k)\\
+   y(k) &= Cx(k) + w(k) + z(k)
+   \end{align*}
+   where
+   \begin{align*}
+   w &\sim \mathcal{N}(0,R)\\
+   v &\sim \mathcal{N}(0,Q)
+   \end{align*}
+   The measurement update of the Kalman filter can be shown to be equivalent to solving the problem
+   \[ \text{minimize} \; w^{\mathrm{T}} R^{-1} w + (x-\hat{x}_{k|k-1})P^{-1}(x-\hat{x}_{k|k-1}) \]
+   \[ \text{subject to}\quad y = Cx + w \]
+   with variables $w$ and $x$.
+** Robust update
+   The idea is to write the update step using l1-regularization:
+   \[ \text{minimize} \; w^{\mathrm{T}} R^{-1} w + (x-\hat{x}_{k|k-1})P^{-1}(x-\hat{x}_{k|k-1}) + \lambda||z||_1 \]
+   \[ \text{subject to}\quad y = Cx + w + z \]
+   with variables $w$, $x$ and $z$. The matrix $P$ is the covariance of the prediction error
+   \[ P = P_{k|k-1} = \mathrm{E} (x-\hat{x}_{k|k-1})(x-\hat{x}_{k|k-1})^{\mathrm{T}}. \]
+   The parameter $\lambda$ is tuned so that $z$ has desired sparsity.
+** Robust update alternative form
+   The minization problem of the previous slide can be shown (next slide) to be equivalent to the problem
+   \[ \text{minimize} \; (e-z)^{\mathrm{T}} S (e-z) + \lambda||z||_1 \]
+   with variable $z$. To compute $S$, first compute the Kalman gain
+   \[ K = PC^{\mathrm{T}}(CPC^{\mathrm{T}} + R)^{-1}, \]
+   and then
+   \[ S = (1-CK)^{\mathrm{T}} R^{-1} (1-CK) + K^{\mathrm{T}} P^{-1} K. \]
+   
+   The update is finally computed as
+   \[ x = \hat{x}_{k|k-1} + K(e-z) \]
+** Obtaining the alternative form
+   Start with the criterion 
+   \[ \text{minimize} \; w^{\mathrm{T}} R^{-1} w + (x-\hat{x}_{k|k-1})P^{-1}(x-\hat{x}_{k|k-1}) + \lambda||z||_1. \]
+   Substitute    \[ x = \hat{x}_{k|k-1} + K(e-z), \]
+   \[ w = y - Cx - z\] 
+   and use the identity \[e = y-C\hat{x}_{k|k-1}.\] The alternative form follows.
+
+** Tracking example again
+   \begin{center}
+   \includegraphics[width=0.7\linewidth]{circular-movement-rkf-crop}
+   \end{center}
+
+** Tracking example again
+   10% chance of outlier with 10 times normal standard deviation
+   \begin{center}
+   \includegraphics[width=0.7\linewidth]{circular-movement-rkf-2-crop}
+   \end{center}
+
+** A fast and approximate implementation
+   The optimization problem is
+   \[ \text{minimize} \; 0.5(e-z)^{\mathrm{T}} S (e-z) + \lambda||z||_1. \]
+   If $S$ is diagonal, then we can assume the elements of $e$ and $z$ to have the same sign.
+   The criterion can then be written
+   \[ \text{minimize} \; 0.5(e-z)^{\mathrm{T}} S (e-z) + \lambda \sign(e)^{\mathrm{T}}z. \]
+   Expanding the quadratic form leads to
+   \[\text{minimize} \; 0.5e\transp Se - e\transp S z + 0.5z\transp S z + D\transp z\]
+   \[ \Rightarrow \; \text{minimize} \;  0.5z\transp S z + C\transp z = f \] 
+   Which has the solution obtained by setting the derivative of $f$ wrt to $z$ to zero: 
+   \[df/dz = Sz + C = 0 \]
+   hence
+   \[ z = -S^{-1}C = e - \lambda S^{-1}\sign(e). \]
+
+** A fast and approximate implementation, contd
+*** Note that we had assumed that the corresponding elements of $z$ and $e$ had the same sign. So, we need to check that this is the case and set to zero those elements of $z$ that do not fulfill this requirement.
+*** The method is only guaranteed to work for diagonal \(S\). If \(S\) is not diagonal, an approximate solution can be found by forcing it to be diagonal. The inverse is then trivial to compute.
+
+** A fast and approximate implementation, contd
+Matlab code
+#+BEGIN_SRC matlab
+% Compute weighting matrix
+% Have Kalman gain K, pred covariance Pkk
+% and innovations ek = y - xk1
+ICK = eye(m)-C*K;
+S = ICK' / R * ICK + K' / Pkk * K;
+% Works only if S is diagonal, so lets force it
+% We will need the inverse only
+Sinv = diag(1.0./diag(S));
+se = sign(ek);
+z = ek - lambda*Sinv*se;
+z(find(sign(z) ~= se)) = 0;
+% Filter update
+xkNew = xk1 + K*(ek - z);
+#+END_SRC
+
+* babel-stuff							   :noexport:
+#+begin_src octave :exports results
+n = [1:10];
+x = 50*n+4;
+ans = x
+#+end_src
+
+#+results:
+| 54 | 104 | 154 | 204 | 254 | 304 | 354 | 404 | 454 | 504 |
+
+
+#+begin_src matlab :results file
+figure( 1, "visible", "off" );
+sombrero;
+print -dpng chart.png;
+ans = 'chart.png';
+#+end_src
+
+#+RESULTS: 
+[[file:chart.png]]
+
+
