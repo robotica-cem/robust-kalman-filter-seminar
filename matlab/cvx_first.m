@@ -2,6 +2,8 @@
 % Kjartan Halvorsen
 % 2015-10-29
 
+close all
+
 % Generate a signal according to a simple linear model y=ax+b. We will
 % estimate a and b from noisy measurements.
 a0 = 2;
@@ -18,7 +20,7 @@ yg = y0 + sgma*randn(size(y0));
 
 % Then also with bernoulli-gaussian noise
 p_outlier = 0.1; % Probability of outlier
-n_a = sgma*4;     % Amplitude of outlier
+n_a = sgma*20;     % Amplitude of outlier
 bg_noise = abs(n_a*randn(size(y0)));
 bg_noise(find(rand(size(y0)) > p_outlier)) = 0;
 
@@ -73,9 +75,12 @@ e2 = ybg - (a2*x + b2*unos);
 figure(2)
 clf
 hist(e2, 50)
+title('Residuals, least-squares')
 
 % Plot regression line
 figure(1)
+l0 = plot(x, a0*x + b0, 'k')
+hold on
 l2r = plot(x, a2*x + b2*unos, 'g', 'linewidth', 2)
 
 %% L1-minimization
@@ -97,6 +102,7 @@ sprintf('l1-minimizaion estimates (cvx): a=%f, b=%f', a1, b1)
 e1 = ybg - (a1*x + b1*unos);
 figure(3)
 hist(e1, 50)
+title('Residuals, l1-minimization')
 
 % Plot regression line
 figure(1)
@@ -167,6 +173,7 @@ max(w)
 el1 = ybg - (al1*x + bl1*unos + w);
 figure(4)
 hist(el1, 50)
+title('Residuals, l1-regularization')
 
 % Plot regression line and identify outliers
 figure(1)
@@ -229,6 +236,7 @@ max(w)
 eqp = ybg - (aqp*x + bqp*unos + w);
 figure(5)
 hist(eqp, 50)
+title('Residuals, l1-regularization as QP')
 
 % Plot regression line and identify outliers
 figure(1)
@@ -236,4 +244,4 @@ l1pqr = plot(x, aqp*x + bqp*unos, 'b', 'linewidth', 2);
 for i=find(abs(w)>tol)
   plot(x(i), aqp*x(i) + bqp + w(i), 'bo')
 end
-legend([l2r, l1r, l1rr, l1pqr], 'Least-squares', 'l1-minimization', 'l1-regularization', 'l1-reg as QP')
+legend([l0, l2r, l1r, l1rr, l1pqr], 'True','Least-squares', 'l1-minimization', 'l1-regularization', 'l1-reg as QP')

@@ -1,12 +1,15 @@
 #+OPTIONS: toc:nil 
-#+BEAMER_FRAME_LEVEL: 2
 # #+LaTeX_CLASS: koma-article 
 #+LaTeX_CLASS: beamer
+#+LATEX_CLASS_OPTIONS: [presentation,aspectratio=169]
+#+OPTIONS: H:2
 #+LaTeX_HEADER: \usepackage{khpreamble}
+#+LaTeX_HEADER: \usepackage{xcolor}
 #+LaTeX_HEADER: \newcommand{\sign}{\mathrm{sign}}
-#+LaTeX_HEADER: \newcommand{\transp}{^{\mathrm{T}}}
+#+LaTeX_HEADER: \renewcommand{\transp}{^{\mathrm{T}}}
+
 #+title: Robust Kalman filter
-#+date: 2015-11-04
+#+date: 2019-11-13
 * What do I want the students to understand? 			   :noexport:
 ** Convex optimization is fast and powerful
 ** How to formulate a convex opimization problem
@@ -20,12 +23,21 @@
 
 * Introduction
 ** Why a robust version of the Kalman filter?
+** Why a robust version of the Kalman filter?
    The Kalman filter assumes Gaussian measurement noise and so it is very sensitive to outliers. 
 ** Example 1
+*** Text
+    :PROPERTIES:
+    :BEAMER_col: 0.3
+    :END:
 # Tracking in 2d 
    The target moves in a circle. Observations are noisy with one outlier
+*** Text
+    :PROPERTIES:
+    :BEAMER_col: 0.7
+    :END:
    \begin{center}
-   \includegraphics[width=0.7\linewidth]{circular-movement-crop}
+   \includegraphics[width=0.9\linewidth]{circular-movement-crop}
    \end{center}
 ** Example 1 contd. 
    The model of the dynamics: /Nearly constant velocity model/
@@ -35,25 +47,45 @@
    where the state vector contains the position and velocity of the target
    \[ x = \bbm p\\\dot{p} \ebm.\]
 ** Example 1 contd.
+*** Text
+    :PROPERTIES:
+    :BEAMER_col: 0.3
+    :END:
    Result of tracking using standard Kalman filter
+*** plot
+    :PROPERTIES:
+    :BEAMER_col: 0.7
+    :END:
    \begin{center}
-   \includegraphics[width=0.7\linewidth]{circular-movement-kf-crop}
+   \includegraphics[width=0.9\linewidth]{circular-movement-kf-crop}
    \end{center}
 * Convex optimization
+** Convex optimization
 ** Recommended reading
    \begin{center}
-   \includegraphics[width=0.8\linewidth]{real-time-convex-opt}
+   \includegraphics[width=0.7\linewidth]{cvx-book.png}
    \end{center}
-Mattingley, Jacob, and Stephen Boyd. "Real-time convex optimization in signal processing." Signal Processing Magazine, IEEE 27.3 (2010): 50-61.
 
-** Preperation exercise
+** Preperation example
    Linear regression model
    \begin{equation*}
    y(k) = ax(k) + b + e(k) + w(k), 
    \end{equation*}
    where $e(k)$ is Gaussian noise and $w(k)$ is a sparse vector of outliers.
 
-** Preparation exercise contd
+** Preparation example, contd
+   Least squares estimation:
+   \begin{equation*}
+    \text{minimize} \; ||y - ax - b||_2\\
+   \end{equation*}
+   Or, equivalently
+   \begin{align*}
+    \text{minimize} \; & ||\epsilon||_2\\
+    \text{subject to} \; & \epsilon = y - ax-b
+   \end{align*}
+
+
+** Preparation example, contd
    Least squares estimation:
    \begin{equation*}
     \text{minimize} \; ||y - ax - b||_2\\
@@ -62,20 +94,76 @@ Mattingley, Jacob, and Stephen Boyd. "Real-time convex optimization in signal pr
    \[ A = \bbm x(1) & 1\\x(2) & 1\\ \vdots & \vdots\\ x(N) & 1\ebm \]
    and
    \[ z = \bbm a\\b\ebm, \]
-   and solving for $z$ in 
+   and solving for $z$ in the (over-determined) system of equations
    \[ Az = y. \]
+** The problem with least squares
+*** Text
+    :PROPERTIES:
+    :BEAMER_col: 0.4
+    :END:
+   \begin{align*}
+    \text{minimize} \; &\sum_k \phi_{S}(\epsilon_k)\\
+    \text{where} \; \phi_S(u) &= u^2
+   \end{align*}
+   
+*** Graphics
+    :PROPERTIES:
+    :BEAMER_col: 0.6
+    :END:
 
-** Preparation exercis contd.
-   l1-regularization:
-   \begin{equation*}
-    \text{minimize} \; ||y - ax - b - w||_2 + \gamma ||w||_1\\
-   \end{equation*}
-   Solved by convex optimization.
+   #+BEGIN_LaTeX
+        \begin{center}
+          \begin{tikzpicture}
+            \begin{axis}[
+              width=8cm,
+              height=6cm,
+              ylabel=penalty,
+              xlabel=residual,
+              ]
+              \addplot[red, thick, no marks, domain=-4:4, samples=201] {x^2};
+            \end{axis}
+          \end{tikzpicture}
+        \end{center}
+        
+   #+END_LaTeX
 
-   The vector $w$ will contain the outliers. The larger the value of $\gamma$, the fewer non-zero elements in $w$. 
+** More robust: The Huber penalty function
+*** Text
+    :PROPERTIES:
+    :BEAMER_col: 0.4
+    :END:
+    A.k.a \emph{robust least squares}
+   \begin{align*}
+    \text{minimize} \; &\sum_k \phi_{hub}(\epsilon_k)\\
+    \text{where}\; phi_{hub}(u) &= \begin{cases} u^2 & |u| \le M\\ M(2|u|-M) & |u| > M \end{cases}
+   \end{align*}
+
+*** Graphics
+    :PROPERTIES:
+    :BEAMER_col: 0.6
+    :END:
+   #+BEGIN_LaTeX
+        \begin{center}
+          \begin{tikzpicture}
+            \begin{axis}[
+              width=8cm,
+              height=6cm,
+              ylabel=penalty,
+              xlabel=residual,
+              ]
+              \addplot[red, thick, no marks, domain=-4:4, samples=201] {x^2};
+              \addplot[orange!90!black, thick, no marks, domain=-4:-1, samples=201] {2*abs(x)-1};
+              \addplot[orange!90!black, thin, no marks, domain=-1:1, samples=201] {x^2};
+              \addplot[orange!90!black, thick, no marks, domain=1:4, samples=201] {2*abs(x)-1};
+            \end{axis}
+          \end{tikzpicture}
+        \end{center}
+        
+   #+END_LaTeX
+** Back to preparation example
 
 * Robust Kalman Filter
-** The update step of the Kalman filter
+** Robustifying the Kalman filter
    We have the state space model
    \begin{align*}
    x(k+1) &= Hx(k) + Fv(k)\\
@@ -103,7 +191,7 @@ Mattingley, Jacob, and Stephen Boyd. "Real-time convex optimization in signal pr
    with variable $z$. To compute $S$, first compute the Kalman gain
    \[ K = PC^{\mathrm{T}}(CPC^{\mathrm{T}} + R)^{-1}, \]
    and then
-   \[ S = (1-CK)^{\mathrm{T}} R^{-1} (1-CK) + K^{\mathrm{T}} P^{-1} K. \]
+   \[ S = (I-CK)^{\mathrm{T}} R^{-1} (I-CK) + K^{\mathrm{T}} P^{-1} K. \]
    
    The update is finally computed as
    \[ x = \hat{x}_{k|k-1} + K(e-z) \]
@@ -115,14 +203,27 @@ Mattingley, Jacob, and Stephen Boyd. "Real-time convex optimization in signal pr
    and use the identity \[e = y-C\hat{x}_{k|k-1}.\] The alternative form follows.
 
 ** Tracking example again
-   \begin{center}
-   \includegraphics[width=0.7\linewidth]{circular-movement-rkf-crop}
+*** Graphics
+    :PROPERTIES:
+    :BEAMER_col: 0.7
+    :END:   
+\begin{center}
+   \includegraphics[width=0.9\linewidth]{circular-movement-rkf-crop}
    \end{center}
 
 ** Tracking example again
-   10% chance of outlier with 10 times normal standard deviation
+*** Text
+    :PROPERTIES:
+    :BEAMER_col: 0.3
+    :END:   
+10% chance of outlier with 10 times normal standard deviation
+
+*** Graphics
+    :PROPERTIES:
+    :BEAMER_col: 0.7
+    :END:
    \begin{center}
-   \includegraphics[width=0.7\linewidth]{circular-movement-rkf-2-crop}
+   \includegraphics[width=0.9\linewidth]{circular-movement-rkf-2-crop}
    \end{center}
 
 ** A fast and approximate implementation

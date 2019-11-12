@@ -29,18 +29,14 @@ function [xk1, Pkk, xkNew, PkNew, z] = rkf(H,G,F,C,D,Q,R,xk,Pk,uk,yk, lambda)
         
         % Compute weighting matrix to be used in minimization problem
         ICK = (eye(m)-C*K);
-        W = ICK' / R * ICK + K' / Pkk * K;
+        W = sqrtm(ICK' / R * ICK + K' / Pkk * K);
         
-        % Minimize using cvx
+        % Minimize using cvx 
         cvx_begin quiet
             variable z(m)
-            minimize( 0.5*(ek-z)'*W*(ek-z) + lambda*norm(z, 1) )
+            minimize( sum( huber(W*(z - ek)) ) )
         cvx_end
         
-        % debug
-        if norm(ek) > 1
-            [ek z]
-        end
         % Filter update
         xkNew = xk1 + K*(ek - z);
 
