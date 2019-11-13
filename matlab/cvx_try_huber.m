@@ -4,6 +4,7 @@
 
 close all
 
+rng(124)
 % Generate a signal according to a simple linear model y=ax+b. We will
 % estimate a and b from noisy measurements.
 a0 = 2;
@@ -12,6 +13,7 @@ N = 40;
 x = linspace(0,10,N)';
 unos = ones(size(x));
 y0 = a0*x + b0*unos; 
+
 
 % Add some noise
 % First white gaussian noise
@@ -28,9 +30,13 @@ ybg = yg + bg_noise;
 
 figure(1)
 clf
+l0 = plot(x, a0*x + b0, 'k')
 hold on
 %plot(x, yg, 'b.')
 plot(x, ybg, 'ro')
+xlabel('x')
+ylabel('y')
+print -dpdf least_squares_example.pdf
 
 %% Least squares estimate of parameters a and b
 
@@ -73,7 +79,7 @@ sprintf('Least squares estimates (cvx): a=%f, b=%f', z2(1), z2(2))
 e2 = ybg - (a2*x + b2*unos);
 figure(2)
 clf
-hist(e2, 50)
+h2 = histogram(e2, 21)
 title('Residuals, least-squares')
 
 % Plot regression line
@@ -87,6 +93,8 @@ ylabel('y')
 xlabel('x')
 
 print -dpdf least_squares_regression.pdf
+binMids = 0.5*(h2.BinEdges(1:end-1)+h2.BinEdges(2:end))
+dlmwrite('ls_residuals.dat', cat(1, binMids, h2.Values/sum(h2.Values))', ',')
 
 %% Huber-minimization
 % Instead of minimizing the sum of square of the residuals or the l2-norm (which is what
@@ -95,7 +103,7 @@ print -dpdf least_squares_regression.pdf
 % and small residuals with the square.
 cvx_begin quiet
     variable z1(2)
-    minimize(sum(huber(A*z1-ybg)))
+    minimize(sum(huber(A*z1-ybg, sgma )))
 cvx_end
 
 a1 = z1(1);
@@ -105,7 +113,7 @@ sprintf('Huber minimizaion estimates (cvx): a=%f, b=%f', a1, b1)
 % Plot of residuals
 e1 = ybg - (a1*x + b1*unos);
 figure(3)
-hist(e1, 50)
+hh = histogram(e1, 20)
 title('Residuals, Huber regression')
 
 % Plot regression line
@@ -115,12 +123,15 @@ hold on
 %plot(x, yg, 'b.')
 plot(x, ybg, 'ro')
 
-l0 = plot(x, a0*x + b0, 'k')
-l2r = plot(x, a2*x + b2*unos, 'g', 'linewidth', 2)
-l1r = plot(x, a1*x + b1*unos, 'c', 'linewidth', 2)
+l0 = plot(x, a0*x + b0, 'k');
+l2r = plot(x, a2*x + b2*unos, 'g', 'linewidth', 2);
+l1r = plot(x, a1*x + b1*unos, 'c', 'linewidth', 2);
 legend([l0, l2r,l1r], sprintf('True, a=%.3f, b=%.3f', [a0,b0]),...
     sprintf('Least squares, a=%.3f, b=%.3f', [a2, b2]),...
     sprintf('Huber, a=%.3f, b=%.3f', [a1, b1]))
 ylabel('y')
 xlabel('x')
 print -dpdf robust_least_squares_regression.pdf
+
+binMids = 0.5*(hh.BinEdges(1:end-1)+hh.BinEdges(2:end))
+dlmwrite('huber_residuals.dat', cat(1, binMids, hh.Values/sum(hh.Values))', ',')
